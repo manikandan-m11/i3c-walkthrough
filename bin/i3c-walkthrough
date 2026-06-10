@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# i3c-walkthrough — open the prebuilt MIPI I3C HCI driver walkthrough in a browser.
+#
+# The HTML is a BUILT ARTIFACT: this launcher only views it, it never regenerates
+# it, so it costs no LLM tokens. To rebuild after a big HCI driver change, ask
+# Claude Code:  "regenerate the i3c walkthrough"   (or run with --regen for a reminder).
+
+PORT=8765
+BIND=0.0.0.0
+DIR="$HOME/.local/share/i3c-hci"
+FILE="walkthrough.html"
+LOCAL_URL="http://localhost:${PORT}/${FILE}"
+
+case "${1:-}" in
+  -r|--regen|regen|regenerate|rebuild)
+    echo "This launcher only views the prebuilt page; it does not regenerate it."
+    echo "To rebuild from the current driver source, ask Claude Code:"
+    echo "    \"regenerate the i3c walkthrough\""
+    exit 0 ;;
+  -h|--help)
+    echo "Usage: i3c-walkthrough [--regen|--help]"
+    echo "  (no args)   start the local server if needed and open the walkthrough"
+    echo "  --regen     print how to rebuild the page (rebuild is done by Claude)"
+    exit 0 ;;
+esac
+
+if [ ! -f "$DIR/$FILE" ]; then
+  echo "error: $DIR/$FILE not found." >&2
+  echo "Ask Claude Code to \"regenerate the i3c walkthrough\" to build it." >&2
+  exit 1
+fi
+
+# Start the server only if the page isn't already being served.
+if ! curl -fsS -o /dev/null "$LOCAL_URL" 2>/dev/null; then
+  echo "Starting server on :${PORT} ..."
+  ( cd "$DIR" && setsid python3 -m http.server "$PORT" --bind "$BIND" \
+      >/dev/null 2>&1 < /dev/null & )
+  for _ in $(seq 1 25); do
+    curl -fsS -o /dev/null "$LOCAL_URL" 2>/dev/null && break
+    sleep 0.2
+  done
+fi
+
+ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+echo "I3C HCI walkthrough is available at:"
+echo "    ${LOCAL_URL}"
+[ -n "$ip" ] && echo "    http://${ip}:${PORT}/${FILE}   (from another machine)"
+
+# Convenience: try to open a local browser (harmless/no-op on headless boxes).
+command -v xdg-open >/dev/null 2>&1 && xdg-open "$LOCAL_URL" >/dev/null 2>&1 &
+exit 0

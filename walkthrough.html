@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIPI I3C HCI Driver — Interactive Walkthrough</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#30363d;
+    --text:#e6edf3; --muted:#9da7b3; --accent:#58a6ff; --accent2:#7ee787;
+    --warn:#f0883e; --pink:#ff7b9c; --purple:#bc8cff; --code:#0b0f14;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--text);line-height:1.6}
+  a{color:var(--accent);text-decoration:none}
+  code,pre{font-family:"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+  .layout{display:flex;min-height:100vh}
+  nav.side{width:300px;flex:0 0 300px;background:var(--panel);border-right:1px solid var(--border);
+           position:sticky;top:0;height:100vh;overflow-y:auto;padding:18px 0}
+  nav.side h1{font-size:15px;margin:0 18px 4px;color:var(--accent2)}
+  nav.side .sub{font-size:12px;color:var(--muted);margin:0 18px 16px}
+  nav.side .grp{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+                margin:16px 18px 4px;font-weight:700}
+  nav.side a.lnk{display:block;padding:6px 18px;font-size:13px;color:var(--text);border-left:3px solid transparent}
+  nav.side a.lnk:hover{background:var(--panel2);border-left-color:var(--accent)}
+  nav.side a.lnk.active{background:var(--panel2);border-left-color:var(--accent2);color:var(--accent2)}
+  main{flex:1;max-width:980px;margin:0 auto;padding:40px 48px 120px}
+  section{margin-bottom:64px;scroll-margin-top:20px}
+  h2{font-size:26px;border-bottom:1px solid var(--border);padding-bottom:10px;color:var(--accent)}
+  h3{font-size:19px;color:var(--accent2);margin-top:34px}
+  h4{font-size:15px;color:var(--purple);margin-top:24px;margin-bottom:6px}
+  .lead{font-size:16px;color:var(--muted)}
+  .eli5{background:linear-gradient(90deg,rgba(126,231,135,.08),transparent);
+        border-left:3px solid var(--accent2);padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0}
+  .eli5 b{color:var(--accent2)}
+  .note{background:rgba(88,166,255,.08);border-left:3px solid var(--accent);padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0}
+  .warn{background:rgba(240,136,62,.10);border-left:3px solid var(--warn);padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0}
+  .warn b{color:var(--warn)}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:12.5px}
+  pre .c{color:#6e7681}.pre .k{color:#ff7b9c}
+  code.inl{background:var(--panel2);padding:2px 6px;border-radius:5px;font-size:12.5px;color:var(--pink)}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13px}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--accent2)}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--panel2);
+        border:1px solid var(--border);color:var(--muted);margin:2px 4px 2px 0}
+  .pill.v1{color:var(--accent2);border-color:var(--accent2)}
+  .pill.v2{color:var(--purple);border-color:var(--purple)}
+  .pill.mchp{color:var(--warn);border-color:var(--warn)}
+  .flow{display:flex;flex-direction:column;gap:0;margin:24px 0}
+  .step{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;
+        cursor:pointer;transition:.15s;position:relative}
+  .step:hover{border-color:var(--accent);transform:translateX(4px)}
+  .step .n{display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:50%;
+           background:var(--accent);color:#001;font-weight:700;font-size:13px;margin-right:10px}
+  .step .ttl{font-weight:600;font-size:15px}
+  .step .fn{color:var(--muted);font-size:12px;font-family:monospace;margin-left:36px}
+  .step .body{display:none;margin:12px 0 2px 36px;font-size:13.5px;color:var(--text)}
+  .step.open .body{display:block}
+  .step.open{border-color:var(--accent2)}
+  .arrow{height:18px;width:2px;background:var(--border);margin-left:30px}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px}
+  .card h4{margin-top:0}
+  details{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px 14px;margin:10px 0}
+  details summary{cursor:pointer;font-weight:600;color:var(--accent2);padding:6px 0}
+  .reg{font-family:monospace;color:var(--warn)}
+  .filehdr{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .filehdr .loc{font-size:12px;color:var(--muted);font-family:monospace}
+  hr.soft{border:0;border-top:1px dashed var(--border);margin:30px 0}
+  @media(max-width:820px){nav.side{display:none}main{padding:24px}.twocol{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="side">
+  <h1>MIPI I3C HCI</h1>
+  <div class="sub">Driver walkthrough · SAMA7D65</div>
+  <div class="grp">Start here</div>
+  <a class="lnk" href="#intro">0 · What is I3C?</a>
+  <a class="lnk" href="#bigpic">1 · The big picture</a>
+  <div class="grp">The boot journey</div>
+  <a class="lnk" href="#flow">2 · Probe → slave detection</a>
+  <a class="lnk" href="#daa">3 · DAA explained</a>
+  <div class="grp">Files, one by one</div>
+  <a class="lnk" href="#core">core.c</a>
+  <a class="lnk" href="#callbacks">core.c — the 17 callbacks</a>
+  <a class="lnk" href="#pio">pio.c</a>
+  <a class="lnk" href="#dma">dma.c</a>
+  <a class="lnk" href="#cmdv1">cmd_v1.c</a>
+  <a class="lnk" href="#cmdv2">cmd_v2.c</a>
+  <a class="lnk" href="#datv1">dat_v1.c</a>
+  <a class="lnk" href="#dctv1">dct_v1.c</a>
+  <a class="lnk" href="#extcaps">ext_caps.c</a>
+  <a class="lnk" href="#quirks">hci_quirks.c (AMD)</a>
+  <a class="lnk" href="#mchp">hci_quirks_mchp.c</a>
+  <div class="grp">Reference</div>
+  <a class="lnk" href="#glossary">Glossary</a>
+</nav>
+<main>
+<section id="intro">
+<h2>0 · What is I3C, and what is this driver?</h2>
+<p class="lead">Before any code: a 60-second mental model so the rest makes sense.</p>
+
+<div class="eli5">
+<b>Imagine a school classroom.</b> The <b>master</b> is the teacher. The <b>slaves</b> (also called <i>targets</i>) are students. They all share two wires running across the room: one wire carries a clock tick (<b>SCL</b>), the other carries data (<b>SDA</b>). The teacher decides who speaks and when. <b>I3C</b> is the set of rules for how the teacher and students talk over those two wires — it's the modern, faster successor to the old <b>I2C</b> bus, and it's backward-compatible so old I2C students can still sit in the same class.
+</div>
+
+<p>Some vocabulary you'll keep seeing:</p>
+<table>
+<tr><th>Term</th><th>Plain meaning</th></tr>
+<tr><td><b>Master / Controller</b></td><td>The chip that runs the bus. Here it lives inside the SAMA7D65 SoC. <i>This driver controls the master.</i></td></tr>
+<tr><td><b>Slave / Target</b></td><td>A sensor, EEPROM, etc. that answers the master.</td></tr>
+<tr><td><b>SCL / SDA</b></td><td>The two physical wires: clock and data.</td></tr>
+<tr><td><b>Dynamic Address</b></td><td>I3C lets the master <i>assign</i> each slave an address at boot instead of hard-coding it. The hand-out ceremony is called <b>DAA</b>.</td></tr>
+<tr><td><b>CCC</b></td><td>Common Command Code — a standard "broadcast or directed" command the master sends (e.g. "everyone, reset your address").</td></tr>
+<tr><td><b>IBI</b></td><td>In-Band Interrupt — a slave raising its hand to interrupt the master ("I have data!") without a separate interrupt wire.</td></tr>
+<tr><td><b>HCI</b></td><td>Host Controller Interface — a <i>standardized register layout</i> defined by MIPI so one driver can run many vendors' I3C hardware. This whole driver implements HCI.</td></tr>
+</table>
+
+<div class="note">
+<b>Why does a "standard register layout" matter?</b> Normally every chip vendor invents its own registers, so every chip needs its own driver. MIPI HCI says: "all compliant hardware exposes the <i>same</i> registers in the <i>same</i> places, and advertises its own capabilities in a version register." So <code class="inl">core.c</code> can read a version number and a capabilities word, then auto-pick the right behaviour. Vendor differences that <i>don't</i> fit the standard are handled by small <b>quirks</b> — which is exactly where the Microchip work lives.
+</div>
+</section>
+
+<section id="bigpic">
+<h2>1 · The big picture — how the files fit together</h2>
+<p>The driver is deliberately split into <b>layers that plug into each other through function-pointer tables (vtables)</b>. The reason: the hardware comes in several versions and two transfer styles, and the authors wanted to add a new variant by dropping in a new file, not by sprinkling <code class="inl">if (version==...)</code> everywhere.</p>
+
+<div class="eli5">
+<b>Think of a restaurant.</b> <code class="inl">core.c</code> is the <b>manager</b> — it talks to the customer (the kernel's I3C subsystem) and delegates real work. Two things are swappable:
+<ul>
+<li><b>How food reaches the table</b> → the <b>transfer engine</b>: either a waiter carrying plates by hand (<span class="pill">PIO</span> = CPU copies data) or a conveyor belt (<span class="pill">DMA</span> = hardware moves data). Same job, two implementations of the same <code class="inl">hci_io_ops</code> menu.</li>
+<li><b>How orders are written down</b> → the <b>command model</b>: old short notepad (<span class="pill v1">cmd_v1</span>, 32-bit descriptors) or new long notepad (<span class="pill v2">cmd_v2</span>, 64-bit descriptors), both implementing <code class="inl">hci_cmd_ops</code>.</li>
+</ul>
+The manager reads the hardware's version at boot and hires the right waiter and the right notepad. The Microchip board adds a couple of <span class="pill mchp">quirks</span> — small house rules the manager applies for this specific kitchen.
+</div>
+
+<table>
+<tr><th>File</th><th>Role in the restaurant analogy</th><th>Vtable it fills</th></tr>
+<tr><td><code class="inl">core.c</code></td><td>The manager — probe, version detect, the 17 callbacks the kernel calls</td><td><code class="inl">i3c_master_controller_ops</code></td></tr>
+<tr><td><code class="inl">pio.c</code></td><td>Waiter carrying plates (CPU-driven FIFOs)</td><td><code class="inl">hci_io_ops</code></td></tr>
+<tr><td><code class="inl">dma.c</code></td><td>Conveyor belt (hardware ring descriptors)</td><td><code class="inl">hci_io_ops</code></td></tr>
+<tr><td><code class="inl">cmd_v1.c</code></td><td>Short notepad (HCI 1.0/1.1)</td><td><code class="inl">hci_cmd_ops</code></td></tr>
+<tr><td><code class="inl">cmd_v2.c</code></td><td>Long notepad (HCI 2.0)</td><td><code class="inl">hci_cmd_ops</code></td></tr>
+<tr><td><code class="inl">dat_v1.c</code></td><td>The seating chart — who sits at which address</td><td><code class="inl">hci_dat_ops</code></td></tr>
+<tr><td><code class="inl">dct_v1.c</code></td><td>The guest book filled during the address ceremony</td><td><code class="inl">hci_dct_ops</code></td></tr>
+<tr><td><code class="inl">ext_caps.c</code></td><td>Reading the kitchen's posted capabilities list</td><td>—</td></tr>
+<tr><td><code class="inl">hci_quirks.c</code></td><td>AMD house rules</td><td>—</td></tr>
+<tr><td><code class="inl">hci_quirks_mchp.c</code></td><td>Microchip house rules (your work)</td><td>—</td></tr>
+</table>
+</section>
+
+<section id="flow">
+<h2>2 · The boot journey: from <code class="inl">probe</code> to detecting a slave</h2>
+<p class="lead">Click any step to expand it. This is the exact path the code takes, top to bottom, the moment the kernel finds the I3C hardware described in the device tree.</p>
+
+<div class="flow">
+
+  <div class="step"><span class="n">1</span><span class="ttl">Kernel matches the device tree node to this driver</span>
+    <div class="fn">i3c_hci_of_match[] → i3c_hci_probe()</div>
+    <div class="body">
+      The device tree (<code class="inl">sama7d65.dtsi</code>) has a node <code class="inl">i3c@e9000000</code> with
+      <code class="inl">compatible = "microchip,sama7d65-i3c-hci"</code>. At boot the kernel scans for a driver whose
+      match table contains that string. Ours does — see the second entry of <code class="inl">i3c_hci_of_match[]</code> — so the
+      kernel calls <code class="inl">i3c_hci_probe()</code>. Crucially, that match entry carries <b>.data</b> = a bitmask of
+      <b>quirks</b>: <code class="inl">PIO_MODE | CLK_SUPPORT | MCHP_RESP_BUF_THLD</code>. That bitmask is how the rest of the
+      driver later knows "this is the Microchip variant."
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">2</span><span class="ttl">Allocate state, map registers, fetch the quirk bitmask</span>
+    <div class="fn">i3c_hci_probe() — alloc, ioremap, device_get_match_data()</div>
+    <div class="body">
+      We <code class="inl">devm_kzalloc</code> the big <code class="inl">struct i3c_hci</code> (the driver's whole brain, defined in
+      <code class="inl">hci.h</code>). We map the hardware's registers into CPU-accessible memory with
+      <code class="inl">devm_platform_ioremap_resource()</code> → that pointer becomes <code class="inl">hci->base_regs</code>, the base every
+      register access is relative to. Then <code class="inl">hci->quirks = device_get_match_data()</code> pulls in that bitmask from step 1.
+      <div class="note">The <code class="inl">devm_</code> prefix means "device-managed": the kernel auto-frees these when the device goes away, so there's no manual cleanup path to get wrong.</div>
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">3</span><span class="ttl">Microchip-only: grab the two clocks</span>
+    <div class="fn">if (quirks &amp; HCI_QUIRK_CLK_SUPPORT) devm_clk_get_enabled("pclk"/"gclk")</div>
+    <div class="body">
+      Standard/AMD parts have one clock. The Microchip IP needs <b>two</b>: <code class="inl">pclk</code> (the peripheral/bus clock that
+      makes the registers respond) and <code class="inl">gclk</code> (the generic/core clock, 125&nbsp;MHz, whose rate later drives the SCL
+      timing math). <code class="inl">devm_clk_get_enabled()</code> both fetches and turns them on. This block is gated behind the
+      <code class="inl">CLK_SUPPORT</code> quirk so non-Microchip boards never look for clocks that don't exist in their device tree.
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">4</span><span class="ttl">Read the hardware's identity &amp; capabilities</span>
+    <div class="fn">i3c_hci_init() — HCI_VERSION, HC_CAPABILITIES, table offsets</div>
+    <div class="body">
+      Now we interrogate the silicon. Read <span class="reg">HCI_VERSION</span> → major/minor/revision (e.g. v1.0). Read
+      <span class="reg">HC_CAPABILITIES</span> → a word of feature flags. Read the "section" registers to learn <i>where</i> inside the MMIO
+      window the sub-blocks live: the Device Address Table (DAT), Device Characteristics Table (DCT), the Ring Headers (DMA),
+      the PIO block, and the Extended Capabilities list. Each offset is stored as a pointer like <code class="inl">hci->DAT_regs</code>.
+      <div class="eli5">This is the "self-advertising" magic of HCI — the driver doesn't hard-code addresses, it <b>asks the chip where everything is</b>.</div>
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">5</span><span class="ttl">Walk the extended-capabilities list</span>
+    <div class="fn">i3c_hci_parse_ext_caps() → ext_caps.c</div>
+    <div class="body">
+      The hardware exposes a <b>linked list</b> of optional-feature blocks in MMIO. We walk it node by node
+      (id + length header, then jump <code class="inl">length*4</code> bytes to the next). Each known id has a parser that records useful
+      pointers (debug regs, auto-command regs) or sets a quirk (e.g. NXP parts need <code class="inl">RAW_CCC</code>). See the
+      <a href="#extcaps">ext_caps.c section</a>.
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">6</span><span class="ttl">Pick the command model: cmd_v1 vs cmd_v2</span>
+    <div class="fn">switch(FIELD_GET(HC_CAP_CMD_SIZE, caps))</div>
+    <div class="body">
+      One bitfield in the capabilities word says whether descriptors are 32-bit (<span class="pill v1">cmd_v1</span>) or 64-bit
+      (<span class="pill v2">cmd_v2</span>). We point <code class="inl">hci->cmd</code> at the matching vtable. From now on, code says
+      <code class="inl">hci->cmd->prep_i3c_xfer(...)</code> and neither knows nor cares which version it is.
+      <div class="note">Microchip's IP is HCI v1.x → it uses <span class="pill v1">cmd_v1</span> and the DAT/DCT v1 tables.</div>
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">7</span><span class="ttl">Microchip-only: force PIO mode</span>
+    <div class="fn">if (quirks &amp; HCI_QUIRK_PIO_MODE) hci->RHS_regs = NULL;</div>
+    <div class="body">
+      The next step auto-selects DMA if Ring Headers (<code class="inl">RHS_regs</code>) exist, else PIO. By <b>nulling</b> the ring-header
+      pointer, we force the driver down the PIO path. The Microchip bring-up uses PIO (simpler, no DMA ring setup), so this quirk
+      guarantees it even if the hardware advertises rings.
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">8</span><span class="ttl">Software reset &amp; choose the transfer engine</span>
+    <div class="fn">i3c_hci_reset_and_init() → set hci->io = &amp;mipi_i3c_hci_pio</div>
+    <div class="body">
+      Pulse <span class="reg">SOFT_RST</span> and wait for it to self-clear (clean slate). Set the data-endianness bit to match the CPU.
+      Then: if <code class="inl">RHS_regs</code> is set → DMA, else if <code class="inl">PIO_regs</code> is set → PIO. We land on PIO (step 7), so
+      <code class="inl">hci->io = &amp;mipi_i3c_hci_pio</code>. Every later transfer goes through <code class="inl">hci->io->...</code>.
+      (AMD's <code class="inl">OD_PP_TIMING</code> quirk would also run here — Microchip's timing runs later, in bus_init.)
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">9</span><span class="ttl">Request the interrupt, enable runtime PM, register with the I3C core</span>
+    <div class="fn">devm_request_irq() → i3c_master_register()</div>
+    <div class="body">
+      Hook up <code class="inl">i3c_hci_irq_handler()</code> (shared IRQ). Then the pivotal call: <code class="inl">i3c_master_register()</code> hands
+      our <code class="inl">i3c_hci_ops</code> callback table to the kernel's generic I3C subsystem and says "I'm a master, here's how to drive me."
+      <div class="eli5">Up to now we only set <i>ourselves</i> up. <code class="inl">i3c_master_register()</code> is where we join the kernel's I3C world — and the kernel immediately calls us back to actually start the bus.</div>
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">10</span><span class="ttl">The core calls us back: bring the bus to life</span>
+    <div class="fn">i3c_hci_ops.bus_init → i3c_hci_bus_init()</div>
+    <div class="body">
+      The I3C core now drives <i>us</i>. <code class="inl">bus_init</code>:
+      <ul>
+        <li>initialises the DAT (the seating chart) for cmd_v1;</li>
+        <li>asks the core for a free address and programs it as the <b>master's own</b> dynamic address;</li>
+        <li>calls <code class="inl">hci->io->init()</code> to set up PIO FIFOs;</li>
+        <li><span class="pill mchp">Microchip quirks fire here</span>: <code class="inl">mchp_cfg_resp_buf_thld()</code> (response-buffer threshold) and <code class="inl">mchp_cfg_od_pp_timing()</code> (compute SCL high/low counts from the 125&nbsp;MHz gclk);</li>
+        <li>finally sets <span class="reg">HC_CONTROL_BUS_ENABLE</span> — the bus is now electrically live.</li>
+      </ul>
+      <div class="note">The timing quirk <b>must</b> be here, not in probe: the SCL rate it divides by is only populated by the core <i>after</i> registration, just before bus_init.</div>
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">11</span><span class="ttl">Dynamic Address Assignment — the slaves get discovered</span>
+    <div class="fn">i3c_hci_ops.do_daa → i3c_hci_daa → hci->cmd->perform_daa → hci_cmd_v1_daa()</div>
+    <div class="body">
+      The core triggers DAA. Our code loops: grab a free address, broadcast an <b>ENTDAA</b> CCC, and the hardware clocks out each
+      responding slave's 48-bit Provisional ID / BCR / DCR into the <b>DCT</b>. For every slave that answers we read its DCT entry,
+      assign it the address, and tell the core via <code class="inl">i3c_master_add_i3c_dev_locked()</code>. When no one answers, DAA ends.
+      <b>This is the moment a slave is "detected."</b> Full detail in the <a href="#daa">next section</a>.
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <div class="step"><span class="n">12</span><span class="ttl">Per-device attach &amp; steady state</span>
+    <div class="fn">attach_i3c_dev / reattach_i3c_dev → driver probe for each slave</div>
+    <div class="body">
+      For each discovered slave the core calls <code class="inl">attach_i3c_dev</code>, where we allocate a DAT slot and write the slave's
+      address into it. The slave's own kernel driver then probes. From here the bus is in <b>steady state</b>: reads/writes flow through
+      <code class="inl">i3c_xfers</code>/<code class="inl">i2c_xfers</code>, and slaves can raise <b>IBIs</b> to get attention. All of these are
+      callbacks in <a href="#callbacks">the 17-callback table</a>.
+    </div>
+  </div>
+
+</div>
+</section>
+<section id="daa">
+<h2>3 · DAA, explained slowly</h2>
+<p class="lead">Dynamic Address Assignment is the heart of "slave detection." It deserves its own section because it's the one part that feels like magic.</p>
+
+<div class="eli5">
+<b>The roll-call analogy.</b> The teacher (master) doesn't have a class list. So on day one she says to the whole room: <i>"Everyone who needs an address, get ready."</i> (that's the <b>ENTDAA</b> broadcast). Then she says <i>"Whoever has the lowest ID number, speak first."</i> Each student is wearing a unique 48-bit badge (their <b>Provisional ID</b>). The hardware uses those badges to make exactly one student win each round — the rest stay quiet. The winner shouts their badge, the teacher writes it in the guest book (<b>DCT</b>) and hands them a desk number (<b>dynamic address</b>). Repeat until nobody answers. Now the teacher has a full class list.
+</div>
+
+<h3>What the code actually does — <code class="inl">hci_cmd_v1_daa()</code> in cmd_v1.c</h3>
+<table>
+<tr><th>#</th><th>Step</th><th>Why</th></tr>
+<tr><td>1</td><td>Reset the DCT read index (<code class="inl">mipi_i3c_hci_dct_index_reset</code>)</td><td>The guest book pointer goes back to page 0.</td></tr>
+<tr><td>2</td><td>Allocate a DAT entry &amp; ask the core for the next free address</td><td>We need a desk number ready to hand out before each round.</td></tr>
+<tr><td>3</td><td>Build an <b>ENTDAA</b> address-assignment command and queue it</td><td>This is the "everyone get ready, lowest ID speaks" broadcast.</td></tr>
+<tr><td>4</td><td>Hardware arbitrates; one slave wins and streams its 48-bit PID+BCR+DCR into the DCT</td><td>The wire-level magic — collision resolution happens in silicon, bit by bit.</td></tr>
+<tr><td>5</td><td>Read that DCT entry (<code class="inl">dct_v1.c</code> → PID, BCR, DCR)</td><td>Identify who just answered.</td></tr>
+<tr><td>6</td><td><code class="inl">i3c_master_add_i3c_dev_locked(addr)</code></td><td>Tell the kernel "a new device exists at this address" → triggers attach + its driver.</td></tr>
+<tr><td>7</td><td>Loop back to step 2 until the response says "no more devices"</td><td>Keep handing out desks until the room is silent.</td></tr>
+</table>
+
+<div class="note">
+<b>BCR / DCR / PID — the badge contents.</b>
+<b>PID</b> = 48-bit Provisional ID, globally unique-ish (vendor + part + instance).
+<b>BCR</b> = Bus Characteristics Register: what the device can do on the bus (max speed, supports IBI?, etc.).
+<b>DCR</b> = Device Characteristics Register: <i>what kind</i> of device it is (a code meaning "accelerometer", "EEPROM", …).
+The kernel uses these to match the right slave driver.
+</div>
+
+<div class="warn">
+<b>cmd_v2 does DAA differently.</b> In <code class="inl">hci_cmd_v2_daa()</code> the 8 bytes of ID come back as <i>read data</i> of the command itself (no separate DCT walk). Same outcome, different plumbing — a good example of why the vtable split exists.
+</div>
+</section>
+<section id="core">
+<h2>core.c — the manager</h2>
+<div class="filehdr"><h3 style="margin-top:0">Probe, lifetime, version detection, power management</h3>
+<span class="loc">drivers/i3c/master/mipi-i3c-hci/core.c</span></div>
+
+<p>Everything that <i>isn't</i> a swappable strategy lives here. Its jobs:</p>
+<ul>
+<li><b>Probe / remove</b> — <code class="inl">i3c_hci_probe()</code> (walked through in section 2) and <code class="inl">i3c_hci_remove()</code> which just unregisters.</li>
+<li><b>Version &amp; capability detection</b> — <code class="inl">i3c_hci_init()</code> reads the version/caps registers and chooses cmd_v1 vs cmd_v2 and PIO vs DMA.</li>
+<li><b>Reset</b> — <code class="inl">i3c_hci_software_reset()</code> and <code class="inl">i3c_hci_reset_and_init()</code>.</li>
+<li><b>The IRQ top-half</b> — <code class="inl">i3c_hci_irq_handler()</code>: reads <span class="reg">INTR_STATUS</span>, handles core-level errors, then delegates to <code class="inl">hci->io->irq_handler()</code> (PIO or DMA).</li>
+<li><b>The transfer plumbing</b> — <code class="inl">i3c_hci_process_xfer()</code>: queue a transfer, wait for completion, and on timeout dequeue/abort it.</li>
+<li><b>The 17 callbacks</b> the I3C subsystem calls — the <code class="inl">i3c_hci_ops</code> table (next section).</li>
+<li><b>Power management</b> — runtime suspend/resume, including the Microchip dual-clock gating.</li>
+</ul>
+
+<h3>How a transfer flows through core.c</h3>
+<div class="eli5"><b>The order-taking pipeline.</b> A higher layer (CCC, i3c_xfers, i2c_xfers) builds one or more <code class="inl">struct hci_xfer</code> "order tickets," asks <code class="inl">hci->cmd->prep_*</code> to fill in the descriptor words, marks the last ticket with ROC/TOC ("respond on completion"/"terminate on completion"), then hands the batch to <code class="inl">i3c_hci_process_xfer()</code>. That queues them via the engine, sleeps until the engine signals "done," and reads back the response status.</div>
+
+<pre><span class="c">/* the universal "do this batch and wait" helper (simplified) */</span>
+int i3c_hci_process_xfer(hci, xfer, n){
+    hci->io->queue_xfer(hci, xfer, n);          <span class="c">// PIO or DMA hands it to HW</span>
+    if (!wait_for_completion_timeout(done, t))  <span class="c">// sleep until IRQ wakes us</span>
+        hci->io->dequeue_xfer(hci, xfer, n);     <span class="c">// timed out → abort &amp; reclaim</span>
+    if (RESP_STATUS(xfer[i].response))           <span class="c">// any error code?</span>
+        return hci->io->handle_error(hci, xfer, n);
+}</pre>
+
+<h3>Power management &amp; the Microchip clocks</h3>
+<p><code class="inl">i3c_hci_rpm_suspend()</code> disables the bus, suspends the engine, then (Microchip only) gates <code class="inl">gclk</code> then <code class="inl">pclk</code>. <code class="inl">i3c_hci_rpm_resume()</code> re-inits, (Microchip only) re-enables <code class="inl">pclk</code> then <code class="inl">gclk</code>, recomputes SCL timing, restores the master address and DAT, and re-enables the bus.</p>
+</section>
+
+<section id="callbacks">
+<h2>core.c — the 17 callbacks the kernel calls</h2>
+<p class="lead">This is the contract. <code class="inl">i3c_master_register()</code> handed this table to the I3C subsystem; the subsystem calls these whenever something needs to happen on the bus. Grouped by purpose.</p>
+
+<h3>Bus lifecycle</h3>
+<table>
+<tr><th>Callback</th><th>When the kernel calls it</th><th>What our code does</th></tr>
+<tr><td><code class="inl">bus_init</code></td><td>Right after registration, to start the bus</td><td>Init DAT, assign master's own address, init engine, fire Microchip quirks, enable the bus. <i>(Step 10.)</i></td></tr>
+<tr><td><code class="inl">bus_cleanup</code></td><td>On unregister/shutdown</td><td><code class="inl">i3c_hci_bus_disable()</code>; if that fails, software-reset; then <code class="inl">hci->io->cleanup()</code>.</td></tr>
+</table>
+
+<h3>Discovery &amp; commands</h3>
+<table>
+<tr><th>Callback</th><th>Purpose</th><th>Notes</th></tr>
+<tr><td><code class="inl">do_daa</code></td><td>Run Dynamic Address Assignment</td><td>Delegates to <code class="inl">hci->cmd->perform_daa()</code>. <i>(Section 3.)</i></td></tr>
+<tr><td><code class="inl">send_ccc_cmd</code></td><td>Send a Common Command Code</td><td>Builds one ticket per destination, handles the NXP <code class="inl">RAW_CCC</code> "prefixed" quirk, processes, maps response status to errors.</td></tr>
+<tr><td><code class="inl">i3c_xfers</code></td><td>Private I3C read/write to a slave</td><td>Builds tickets, checks each length against the HW max-data-length cap, sets ROC/TOC, processes.</td></tr>
+<tr><td><code class="inl">i2c_xfers</code></td><td>Legacy I2C read/write</td><td>Same shape, but uses the i2c message flags and the i2c timeout.</td></tr>
+</table>
+
+<h3>Device attach/detach (the seating chart)</h3>
+<table>
+<tr><th>Callback</th><th>Purpose</th><th>What it touches</th></tr>
+<tr><td><code class="inl">attach_i3c_dev</code></td><td>A new I3C slave appeared (e.g. from DAA)</td><td>Alloc per-dev data + a DAT entry, write the slave's dyn/static addr into the DAT slot.</td></tr>
+<tr><td><code class="inl">reattach_i3c_dev</code></td><td>A slave's dynamic address changed</td><td>Rewrite the DAT entry with the new address.</td></tr>
+<tr><td><code class="inl">detach_i3c_dev</code></td><td>A slave went away</td><td>Free the DAT entry and per-dev data.</td></tr>
+<tr><td><code class="inl">attach_i2c_dev</code></td><td>A legacy I2C device declared in DT</td><td>cmd_v1 only: alloc a DAT entry, set static addr + the <code class="inl">I2C_DEVICE</code> flag.</td></tr>
+<tr><td><code class="inl">detach_i2c_dev</code></td><td>I2C device removed</td><td>Free its DAT entry + data.</td></tr>
+</table>
+<div class="eli5"><b>Why a DAT entry per device?</b> The Device Address Table is hardware's lookup of "address → how to talk to it." Every device the master knows about occupies one row. Attach = take a row; detach = free it. cmd_v2 hardware manages this differently, so several of these are no-ops unless <code class="inl">hci->cmd == cmd_v1</code>.</div>
+
+<h3>IBI — letting slaves raise their hand</h3>
+<table>
+<tr><th>Callback</th><th>Purpose</th><th>What our code does</th></tr>
+<tr><td><code class="inl">request_ibi</code></td><td>A slave driver wants to receive IBIs</td><td>Set/clear the DAT <code class="inl">IBI_PAYLOAD</code> flag, then <code class="inl">hci->io->request_ibi()</code> to allocate slots.</td></tr>
+<tr><td><code class="inl">free_ibi</code></td><td>Stop receiving IBIs from a slave</td><td>Delegate to engine's <code class="inl">free_ibi</code>.</td></tr>
+<tr><td><code class="inl">enable_ibi</code></td><td>Actually arm it on the bus</td><td>Clear the DAT <code class="inl">SIR_REJECT</code> flag, then send an ENEC CCC (enable events) to the slave.</td></tr>
+<tr><td><code class="inl">disable_ibi</code></td><td>Disarm</td><td>Set <code class="inl">SIR_REJECT</code>, send a DISEC CCC.</td></tr>
+<tr><td><code class="inl">recycle_ibi_slot</code></td><td>Hand a consumed IBI buffer back</td><td>Delegate to engine so the slot can be reused.</td></tr>
+</table>
+<div class="note"><b>SIR = Slave Interrupt Request.</b> "Reject SIR" in the DAT means the hardware auto-NACKs that slave's interrupts. Enabling an IBI is two coordinated actions: tell <i>our</i> hardware to accept it (clear SIR_REJECT) <b>and</b> tell the <i>slave</i> it may now send it (the ENEC CCC over the wire).</div>
+</section>
+<section id="pio">
+<h2>pio.c — the waiter who carries plates by hand</h2>
+<div class="filehdr"><h3 style="margin-top:0">CPU-driven transfers via FIFO queues</h3>
+<span class="loc">drivers/i3c/master/mipi-i3c-hci/pio.c · implements <code class="inl">mipi_i3c_hci_pio</code></span></div>
+
+<div class="eli5"><b>PIO = Programmed I/O.</b> The CPU does the carrying. To send a command, the CPU writes words into a hardware FIFO (a queue) one at a time. To get data back, the CPU reads words out of another FIFO. When a FIFO has room or has data waiting, the hardware raises an interrupt and the CPU does the next chunk. Simple, no setup — but the CPU is busy during transfers. <b>This is the path the Microchip board uses.</b></div>
+
+<h3>The four FIFOs (hardware queues)</h3>
+<table>
+<tr><th>FIFO</th><th>Direction</th><th>Carries</th></tr>
+<tr><td><span class="reg">COMMAND_QUEUE_PORT</span></td><td>CPU → HW</td><td>Command descriptor words ("the order")</td></tr>
+<tr><td><span class="reg">RESPONSE_QUEUE_PORT</span></td><td>HW → CPU</td><td>One response word per command (status + length)</td></tr>
+<tr><td><span class="reg">XFER_DATA_PORT</span></td><td>both</td><td>The actual payload bytes (TX out / RX in)</td></tr>
+<tr><td><span class="reg">IBI_PORT</span></td><td>HW → CPU</td><td>IBI status + payload when a slave raises its hand</td></tr>
+</table>
+
+<h3>Key functions</h3>
+<table>
+<tr><th>Function</th><th>Role</th></tr>
+<tr><td><code class="inl">hci_pio_init</code></td><td>Read FIFO sizes, set queue/data thresholds (when to interrupt), allocate the PIO bookkeeping struct.</td></tr>
+<tr><td><code class="inl">hci_pio_queue_xfer</code></td><td>Push command words into the CMD FIFO; remember the xfer chain so the IRQ handler can find them.</td></tr>
+<tr><td><code class="inl">hci_pio_irq_handler</code></td><td>The workhorse. On each interrupt it services whichever condition fired: room to push more TX, RX data ready, a response arrived, or an IBI.</td></tr>
+<tr><td><code class="inl">hci_pio_dequeue_xfer</code></td><td>Abort/reclaim a transfer that timed out.</td></tr>
+<tr><td><code class="inl">hci_pio_process_ibi</code> + request/free/recycle</td><td>The IBI machinery for the PIO path.</td></tr>
+</table>
+
+<h3>Threshold registers — "wake me when…"</h3>
+<p><span class="reg">PIO_QUEUE_THLD_CTRL</span> and <span class="reg">PIO_DATA_BUFFER_THLD_CTRL</span> tell the hardware <i>how full/empty</i> a FIFO must get before it bothers the CPU with an interrupt. Set them too aggressively and you get interrupt storms; too lazily and you waste FIFO space. The interrupt-status bits the handler checks include <code class="inl">STAT_RESP_READY</code>, <code class="inl">STAT_TX_THLD</code>, and <code class="inl">STAT_RX_THLD</code>.</p>
+<div class="note"><b>Microchip connection:</b> the <code class="inl">mchp_cfg_resp_buf_thld()</code> quirk zeroes the response-buffer threshold field so the controller raises "response ready" after a single response (n+1 = 1) rather than waiting to batch several — important for the small, latency-sensitive transfers during bring-up.</div>
+</section>
+
+<section id="dma">
+<h2>dma.c — the conveyor belt</h2>
+<div class="filehdr"><h3 style="margin-top:0">Hardware moves data via ring descriptors</h3>
+<span class="loc">drivers/i3c/master/mipi-i3c-hci/dma.c · implements <code class="inl">mipi_i3c_hci_dma</code></span></div>
+
+<div class="eli5"><b>DMA = Direct Memory Access.</b> Instead of the CPU carrying every word, the driver sets up <b>rings</b> (circular arrays) of <b>descriptors</b> in RAM. Each descriptor says "here's a command, and here's the memory address for its data." The driver bumps an "enqueue pointer," and dedicated hardware reads the descriptors, moves the data to/from RAM itself, and bumps a "dequeue pointer" when done. The CPU only gets one interrupt at completion. Far less CPU load — but more setup, and the memory must be DMA-mapped. <b>The Microchip board does not use this path</b> (the PIO_MODE quirk disables it).</div>
+
+<h3>The ring model</h3>
+<table>
+<tr><th>Ring</th><th>What lives in it</th></tr>
+<tr><td>Command ring</td><td>Command descriptors the HW will execute (driver writes, HW reads)</td></tr>
+<tr><td>Response ring</td><td>Completion status the HW writes back</td></tr>
+<tr><td>IBI status ring</td><td>One entry per IBI event chunk</td></tr>
+<tr><td>IBI data ring</td><td>A pool of fixed-size chunks holding IBI payloads</td></tr>
+</table>
+<p>Pointers are tracked in <span class="reg">RH_RING_OPERATION1/2</span>: an <b>enqueue</b> pointer (driver advances when adding work) and a <b>dequeue</b> pointer (hardware advances when finishing). When they differ, there's work in flight.</p>
+
+<h3>Key functions</h3>
+<table>
+<tr><th>Function</th><th>Role</th></tr>
+<tr><td><code class="inl">hci_dma_init</code> / <code class="inl">hci_dma_init_rh</code></td><td>Discover how many rings the HW offers, <code class="inl">dma_alloc_coherent</code> the rings, program their base addresses, enable them.</td></tr>
+<tr><td><code class="inl">hci_dma_queue_xfer</code></td><td>Map each buffer for DMA, write descriptors at the enqueue pointer, advance it. Marks the last with "Interrupt On Completion."</td></tr>
+<tr><td><code class="inl">hci_dma_xfer_done</code></td><td>On the completion IRQ, walk from done-pointer to the HW dequeue pointer, match responses to transfers by TID, complete each.</td></tr>
+<tr><td><code class="inl">hci_dma_dequeue_xfer</code></td><td>Abort: stop the ring, overwrite the pending descriptor with a no-op, restart.</td></tr>
+<tr><td><code class="inl">hci_dma_process_ibi</code></td><td>Reassemble an IBI payload that may wrap around the chunk ring, copy into a slot, hand it up.</td></tr>
+<tr><td><code class="inl">hci_dma_irq_handler</code></td><td>For each ring, read <span class="reg">RH_INTR_STATUS</span> and dispatch: IBI ready, transfer complete/error, ring-op done, abort, ring-full.</td></tr>
+</table>
+<div class="warn"><b>Why DMA IBI needs a copy.</b> Comment in the code: a payload can span chunks that wrap from the end of the ring back to the start, and upper layers may release chunks out of order — so the driver just <code class="inl">memcpy</code>s into a discrete slot. Zero-copy isn't worth the complexity for typically-tiny IBI payloads.</div>
+</section>
+<section id="cmdv1">
+<h2>cmd_v1.c — the short notepad <span class="pill v1">HCI 1.0 / 1.1</span></h2>
+<div class="filehdr"><h3 style="margin-top:0">32-bit command descriptors</h3>
+<span class="loc">drivers/i3c/master/mipi-i3c-hci/cmd_v1.c · implements <code class="inl">mipi_i3c_hci_cmd_v1</code></span></div>
+
+<div class="eli5"><b>A "command descriptor" is the order ticket the hardware reads.</b> Its job is to translate a high-level request ("read 4 bytes from the device at address 0x12 at SDR speed") into the exact bit pattern the silicon expects. cmd_v1 packs this into two 32-bit words (sometimes with the data piggy-backed inside). <b>This is the model the Microchip IP uses.</b></div>
+
+<h3>The five command "types"</h3>
+<table>
+<tr><th>Type</th><th>Letter</th><th>Used for</th></tr>
+<tr><td>Address Assignment</td><td>A</td><td>DAA — handing out dynamic addresses</td></tr>
+<tr><td>Immediate Data Transfer</td><td>I</td><td>Tiny payloads (≤ a few bytes) stuffed <i>into</i> the descriptor — no separate data buffer</td></tr>
+<tr><td>Regular Data Transfer</td><td>R</td><td>Normal reads/writes with a data buffer</td></tr>
+<tr><td>Combo</td><td>C</td><td>A write-then-read in one go (e.g. register address + read)</td></tr>
+<tr><td>Internal Control</td><td>M</td><td>Driver/HW housekeeping</td></tr>
+</table>
+
+<h3>The prep_* methods (what core.c calls)</h3>
+<table>
+<tr><th>Method</th><th>Builds a descriptor for…</th></tr>
+<tr><td><code class="inl">prep_ccc</code></td><td>A Common Command Code (broadcast or directed)</td></tr>
+<tr><td><code class="inl">prep_i3c_xfer</code></td><td>A private I3C read/write — picks the SDR speed mode from the bus SCL rate</td></tr>
+<tr><td><code class="inl">prep_i2c_xfer</code></td><td>A legacy I2C read/write — picks FM vs FM+ from the i2c rate</td></tr>
+<tr><td><code class="inl">perform_daa</code></td><td>The full DAA loop (section 3)</td></tr>
+</table>
+<div class="note"><b>Mode &amp; rate selection.</b> The code maps the configured SCL rate to an I3C SDR mode (SDR0–4) or I2C mode (Fm/Fm+). That choice ends up as bits in the descriptor telling the hardware how fast to clock <i>this</i> transfer.</div>
+</section>
+
+<section id="cmdv2">
+<h2>cmd_v2.c — the long notepad <span class="pill v2">HCI 2.0</span></h2>
+<div class="filehdr"><h3 style="margin-top:0">64-bit command descriptors (the "Unified" command)</h3>
+<span class="loc">drivers/i3c/master/mipi-i3c-hci/cmd_v2.c · implements <code class="inl">mipi_i3c_hci_cmd_v2</code></span></div>
+
+<p>Same four <code class="inl">prep_*</code> methods, same vtable shape — but the descriptors are wider (four 32-bit words) and the format is the v2.0 "Unified Data Transfer Command." core.c picks this automatically when <span class="reg">HC_CAP_CMD_SIZE</span> says 64-bit.</p>
+
+<div class="twocol">
+<div class="card"><h4>What's similar to v1</h4>
+<ul><li>Tiny writes (≤5 bytes) are stuffed into the descriptor as "immediate data bytes" (IDB) — no buffer needed.</li>
+<li>Speed/mode still chosen from the bus rate via <code class="inl">get_i3c_rate_idx</code>/<code class="inl">get_i2c_rate_idx</code>.</li>
+<li>Same ROC/TOC completion flags.</li></ul></div>
+<div class="card"><h4>What's different</h4>
+<ul><li>One unified command type instead of A/I/R/C/M letters.</li>
+<li><b>DAA returns the ID as read-data</b> of the address command itself — no DCT walk needed (contrast with cmd_v1).</li>
+<li>Header explicitly warns the v2.0 spec "is still in flux" — expect change.</li></ul></div>
+</div>
+<div class="eli5"><b>Why have both files?</b> This is the payoff of the vtable design: <code class="inl">core.c</code> never branches on version in the hot path. It calls <code class="inl">hci->cmd->prep_i3c_xfer()</code> and the right notepad fills the ticket. Adding a hypothetical v3 would mean a new <code class="inl">cmd_v3.c</code> — zero edits to core.c's transfer logic.</div>
+</section>
+
+<section id="datv1">
+<h2>dat_v1.c — the seating chart (Device Address Table)</h2>
+<div class="filehdr"><h3 style="margin-top:0">In-hardware table mapping a slot → a device address &amp; flags</h3>
+<span class="loc">drivers/i3c/master/mipi-i3c-hci/dat_v1.c · implements <code class="inl">mipi_i3c_hci_dat_v1</code></span></div>
+
+<div class="eli5"><b>The DAT is the master's address book, living in hardware registers.</b> Each row (entry) holds one device's address plus behaviour flags (is it I2C? reject its interrupts? expect an IBI payload?). When core.c wants to talk to a device, the command references a <b>DAT index</b> (row number), and the hardware looks up the real address there. A software bitmap (<code class="inl">DAT_data</code>) tracks which rows are free.</p></div>
+
+<h3>The operations</h3>
+<table>
+<tr><th>Method</th><th>Does</th></tr>
+<tr><td><code class="inl">init</code></td><td>Validate the table is in register space &amp; 8-byte entries, allocate the shadow array + free-slot bitmap, zero every entry.</td></tr>
+<tr><td><code class="inl">alloc_entry</code> / <code class="inl">free_entry</code></td><td>Find/release a free row (via the bitmap). New rows default to "reject SIR &amp; MR" (ignore this device's interrupt/mastership requests until told otherwise).</td></tr>
+<tr><td><code class="inl">set_dynamic_addr</code> / <code class="inl">set_static_addr</code></td><td>Write a device's address into its row (with the odd-parity bit for dynamic addresses).</td></tr>
+<tr><td><code class="inl">set_flags</code> / <code class="inl">clear_flags</code></td><td>Flip per-device behaviour bits (I2C_DEVICE, IBI_PAYLOAD, SIR_REJECT…).</td></tr>
+<tr><td><code class="inl">get_index</code></td><td>Reverse lookup: given a dynamic address, find its row.</td></tr>
+<tr><td><code class="inl">restore</code></td><td>After a power-cycle/resume, rewrite every shadow entry back into hardware.</td></tr>
+</table>
+<div class="note"><b>Why a shadow copy in RAM?</b> The struct keeps a software mirror (<code class="inl">hci->DAT[]</code>) of every entry. Reads come from the mirror (fast, and survives suspend); the <code class="inl">restore</code> op replays the mirror into hardware on resume — which is exactly what core.c's <code class="inl">rpm_resume</code> calls.</div>
+</section>
+
+<section id="dctv1">
+<h2>dct_v1.c — the guest book (Device Characteristics Table)</h2>
+<div class="filehdr"><h3 style="margin-top:0">Where DAA results land</h3>
+<span class="loc">drivers/i3c/master/mipi-i3c-hci/dct_v1.c · implements <code class="inl">mipi_i3c_hci_dct_v1</code></span></div>
+
+<p>The smallest file. During DAA the hardware writes each responding slave's identity into the DCT. This file's one job is to <b>read an entry back out</b>: <code class="inl">read_entry()</code> pulls the four words of a DCT row and unpacks them into the 48-bit <b>PID</b>, the <b>DCR</b>, and the <b>BCR</b>.</p>
+<div class="eli5"><b>DAT vs DCT — don't mix them up.</b> The <b>DAT</b> is <i>write-mostly by software</i>: "I decide device X lives at address Y." The <b>DCT</b> is <i>write-by-hardware, read-by-software</i>: "the bus told me a device with this ID showed up." DAA fills the DCT; software then copies the useful bits into the kernel's device model and assigns a DAT slot.</div>
+</section>
+<section id="extcaps">
+<h2>ext_caps.c — reading the kitchen's posted capabilities</h2>
+<div class="filehdr"><h3 style="margin-top:0">Walk the optional-feature linked list in MMIO</h3>
+<span class="loc">drivers/i3c/master/mipi-i3c-hci/ext_caps.c</span></div>
+
+<div class="eli5"><b>Extended capabilities are an optional-features menu the hardware posts in its registers.</b> Standard registers are always there; everything beyond is described as a <b>linked list</b>: each block starts with a header (an ID byte + a length), and "next block = current + length". The driver walks this list once at probe, runs a small parser per ID it recognises, and skips ones it doesn't.</div>
+
+<h3>What the parsers do</h3>
+<table>
+<tr><th>Cap ID</th><th>Parser</th><th>Effect</th></tr>
+<tr><td>0x01</td><td><code class="inl">hardware_id</code></td><td>Read vendor MIPI/version/product IDs. <b>NXP → set the <code class="inl">RAW_CCC</code> quirk.</b></td></tr>
+<tr><td>0x02</td><td><code class="inl">master_config</code></td><td>Confirm the IP supports master mode (else bail with -EOPNOTSUPP).</td></tr>
+<tr><td>0x04 / 0x08</td><td><code class="inl">xfer_modes</code> / <code class="inl">xfer_rates</code></td><td>Log the supported transfer modes and data rates.</td></tr>
+<tr><td>0x05</td><td><code class="inl">auto_command</code></td><td>Remember the auto-command register block for later.</td></tr>
+<tr><td>0x0c</td><td><code class="inl">debug</code></td><td>Stash the debug register pointer.</td></tr>
+<tr><td>0xc0–0xcf</td><td>vendor-specific</td><td>Dispatched to a per-vendor parser (e.g. NXP FPGA reset).</td></tr>
+</table>
+<div class="note"><b>This is "self-advertising hardware" in action.</b> Instead of the driver hard-coding "this chip has feature X," it discovers features at runtime by reading what the silicon declares — the core idea that lets one HCI driver serve many vendors.</div>
+</section>
+
+<section id="quirks">
+<h2>hci_quirks.c — AMD house rules</h2>
+<div class="filehdr"><h3 style="margin-top:0">Pre-existing vendor quirks (the pattern the Microchip file copies)</h3>
+<span class="loc">drivers/i3c/master/mipi-i3c-hci/hci_quirks.c</span></div>
+
+<p>This file predates the Microchip work and shows the established pattern: a quirk is just a small function, gated by a <code class="inl">HCI_QUIRK_*</code> bit, that pokes vendor-specific registers core.c wouldn't otherwise touch.</p>
+<table>
+<tr><th>Function</th><th>Gated by</th><th>What it does</th></tr>
+<tr><td><code class="inl">amd_set_od_pp_timing</code></td><td><code class="inl">HCI_QUIRK_OD_PP_TIMING</code></td><td>Write <b>hard-coded constants</b> (0x00cf00cf OD, 0x00160016 PP) tuned for AMD's 9&nbsp;MHz, plus a max TX-hold-time bit.</td></tr>
+<tr><td><code class="inl">amd_set_resp_buf_thld</code></td><td><code class="inl">HCI_QUIRK_RESP_BUF_THLD</code></td><td>Clear the response-buffer threshold field so a single response triggers "ready."</td></tr>
+</table>
+<div class="eli5"><b>"OD" and "PP" are the two electrical phases of I3C signalling.</b> <b>Open-Drain (OD)</b> is the slow, robust phase used for addressing and legacy I2C (the line is pulled up by a resistor). <b>Push-Pull (PP)</b> is the fast phase used for I3C data (the driver actively pushes both high and low). Each needs its own SCL high-count/low-count timing, which is what these registers hold.</div>
+</section>
+
+<section id="mchp">
+<h2>hci_quirks_mchp.c — Microchip house rules <span class="pill mchp">your work</span></h2>
+<div class="filehdr"><h3 style="margin-top:0">Compute SCL timing from the live gclk rate instead of hard-coding</h3>
+<span class="loc">drivers/i3c/master/mipi-i3c-hci/hci_quirks_mchp.c</span></div>
+
+<p>The key difference from AMD: AMD writes <i>fixed magic numbers</i>; Microchip <b>computes</b> the timing from the actual <code class="inl">gclk</code> rate (125&nbsp;MHz) and the configured bus rates, so the same code stays correct if the clock changes.</p>
+
+<h4><code class="inl">mchp_cfg_od_pp_timing()</code></h4>
+<pre><span class="c">core_rate = clk_get_rate(hci->gclk);   // 125 MHz</span>
+<span class="c">/* Push-Pull: high count from max SCL-high time, low count fills the rest */</span>
+hcnt = DIV_ROUND_UP(THIGH_MAX_NS * core_rate, NSEC_PER_SEC) - 1;
+lcnt = DIV_ROUND_UP(core_rate, scl_rate.i3c) - hcnt;
+reg_write(HCI_SCL_I3C_PP_TIMING, HCNT(hcnt) | LCNT(lcnt));
+<span class="c">/* Open-Drain: derived from the I2C rate */</span>
+lcnt = DIV_ROUND_UP(core_rate, 2 * scl_rate.i2c);
+hcnt = DIV_ROUND_UP(core_rate, scl_rate.i2c) - lcnt;
+reg_write(HCI_SCL_I3C_OD_TIMING, HCNT(hcnt) | LCNT(lcnt));
+reg_write(HCI_BUS_FREE_TIMING, FREE(lcnt));   <span class="c">// bus-free idle time</span></pre>
+
+<div class="eli5"><b>What "hcnt/lcnt" mean.</b> The SCL clock is generated by counting source-clock ticks: hold it high for <code>hcnt+1</code> ticks, low for <code>lcnt</code> ticks. With a 125&nbsp;MHz source each tick is 8&nbsp;ns. So to make a 12.5&nbsp;MHz I3C clock you need ~10 ticks per period, split into a high part and a low part. The formulas just turn "nanoseconds I want" into "ticks to count."</div>
+
+<h4><code class="inl">mchp_cfg_resp_buf_thld()</code></h4>
+<p>Clears the response-buffer-threshold field in <span class="reg">QUEUE_THLD_CTRL</span> (gated by <code class="inl">HCI_QUIRK_MCHP_RESP_BUF_THLD</code>) so the controller signals "response ready" after one response — the Microchip-owned twin of AMD's <code class="inl">amd_set_resp_buf_thld</code>.</p>
+
+<h4>How it's wired in</h4>
+<table>
+<tr><th>Where</th><th>What fires</th></tr>
+<tr><td><code class="inl">i3c_hci_of_match[]</code> (core.c)</td><td>The compatible string carries <code class="inl">CLK_SUPPORT | MCHP_RESP_BUF_THLD | PIO_MODE</code>.</td></tr>
+<tr><td><code class="inl">i3c_hci_bus_init()</code></td><td>Calls <code class="inl">mchp_cfg_resp_buf_thld()</code> then <code class="inl">mchp_cfg_od_pp_timing()</code> — <b>after</b> the core populated the SCL rates.</td></tr>
+<tr><td><code class="inl">i3c_hci_rpm_resume()</code></td><td>Recomputes timing after re-enabling the clocks.</td></tr>
+</table>
+
+<div class="warn"><b>Open review items (flagged earlier, not yet applied).</b>
+<ul>
+<li><b>Bus-free timing source.</b> It currently reuses the OD <code class="inl">lcnt</code>. With gclk=125&nbsp;MHz that's ~504&nbsp;ns, which just clears the I2C&nbsp;FM+ 500&nbsp;ns minimum — but a dedicated computation (≈125 ticks = 1&nbsp;µs) would be more universally correct than borrowing OD lcnt.</li>
+<li><b>No underflow guard</b> on <code class="inl">lcnt = … - hcnt</code> — if hcnt ever exceeds the period count, lcnt wraps.</li>
+<li><code class="inl">QUEUE_THLD_CTRL</code> is defined as <code>0xD0</code> (uppercase) in hci.h — checkpatch prefers lowercase <code>0xd0</code>.</li>
+</ul>
+These are tracked as follow-ups; the HTML documents the code <i>as it stands today</i>.</div>
+</section>
+
+<section id="glossary">
+<h2>Glossary — quick reference</h2>
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>BCR / DCR</td><td>Bus / Device Characteristics Register — a slave's capability &amp; type codes, read during DAA.</td></tr>
+<tr><td>CCC</td><td>Common Command Code — standard master command, broadcast or directed.</td></tr>
+<tr><td>DAA</td><td>Dynamic Address Assignment — the boot-time roll-call that gives each slave an address.</td></tr>
+<tr><td>DAT / DCT</td><td>Device Address Table (software writes addresses) / Device Characteristics Table (hardware writes DAA results).</td></tr>
+<tr><td>DMA / PIO</td><td>Two transfer engines: hardware-driven rings vs CPU-driven FIFOs.</td></tr>
+<tr><td>ENTDAA / ENEC / DISEC</td><td>Specific CCCs: enter-DAA / enable-events / disable-events.</td></tr>
+<tr><td>gclk / pclk</td><td>Microchip's core clock (125&nbsp;MHz, drives SCL timing) / peripheral bus clock.</td></tr>
+<tr><td>HCI</td><td>Host Controller Interface — MIPI's standardized register layout.</td></tr>
+<tr><td>IBI</td><td>In-Band Interrupt — a slave interrupting the master over the data line.</td></tr>
+<tr><td>OD / PP</td><td>Open-Drain (slow, robust) / Push-Pull (fast) signalling phases.</td></tr>
+<tr><td>quirk</td><td>A vendor-specific deviation, gated by an <code class="inl">HCI_QUIRK_*</code> bit instead of an if-ladder.</td></tr>
+<tr><td>ROC / TOC</td><td>Respond-On-Completion / Terminate-On-Completion descriptor flags.</td></tr>
+<tr><td>SCL / SDA</td><td>The clock and data wires.</td></tr>
+<tr><td>SDR</td><td>Single Data Rate — the basic I3C transfer mode (SDR0 fastest … SDR4).</td></tr>
+<tr><td>SIR</td><td>Slave Interrupt Request — the IBI a slave sends; "SIR_REJECT" auto-NACKs it.</td></tr>
+<tr><td>TID</td><td>Transaction ID — tags a command so its response can be matched back.</td></tr>
+<tr><td>vtable</td><td>A struct of function pointers (e.g. <code class="inl">hci_io_ops</code>) used to swap implementations without if-branches.</td></tr>
+</table>
+<p style="color:var(--muted);font-size:13px;margin-top:30px">Generated from the source in <code class="inl">drivers/i3c/master/mipi-i3c-hci/</code> · SAMA7D65 bring-up · <code class="inl">drm-misc-next</code></p>
+</section>
+</main>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('.step').forEach(s=>{
+    s.addEventListener('click',e=>{ if(e.target.tagName!=='A') s.classList.toggle('open'); });
+  });
+  const links=[...document.querySelectorAll('nav .lnk')];
+  const map={};links.forEach(l=>{const id=l.getAttribute('href').slice(1);if(document.getElementById(id))map[id]=l;});
+  const obs=new IntersectionObserver(es=>{
+    es.forEach(e=>{ if(e.isIntersecting){ links.forEach(l=>l.classList.remove('active'));
+      if(map[e.target.id])map[e.target.id].classList.add('active'); } });
+  },{rootMargin:'-10% 0px -80% 0px'});
+  document.querySelectorAll('main section').forEach(s=>obs.observe(s));
+});
+</script>
+</body>
+</html>
